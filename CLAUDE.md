@@ -47,12 +47,18 @@ linux-basic/
 | `linux-iptables.md` | 패킷 필터링, NAT, 방화벽 규칙 |
 | `linux-hosts-vs-resolv-conf.md` | 이름 해석: /etc/hosts vs /etc/resolv.conf |
 | `linux-ip-command.md` | ip 명령어 (ifconfig 대체), 라우팅, ENI |
+| `linux-ss-netstat.md` | 포트/소켓 상태 조회, TCP 연결 상태 |
+| `linux-load-balancer.md` | L4/L7 동작원리, 알고리즘, ALB/NLB, 장애 패턴 |
+| `linux-dns-internals.md` | DNS 쿼리 흐름, TTL, dig 실전, Route53 |
 
 ### storage/
 | 파일 | 주제 |
 |---|---|
 | `linux-fstab.md` | /etc/fstab, 파일시스템 자동 마운트 |
 | `linux-lsblk.md` | 블록 장치 조회, UUID 확인 |
+| `linux-volume-mount.md` | EBS 볼륨 연결 → 포맷 → 마운트 → 확장 |
+| `linux-df-du.md` | 디스크 사용량, 디스크 풀 장애 대응 |
+| `linux-package-managers.md` | rpm/yum/dnf vs apt/dpkg 비교 |
 
 ### system/
 | 파일 | 주제 |
@@ -64,6 +70,11 @@ linux-basic/
 | `linux-directory-structure.md` | FHS 디렉토리 구조, /opt vs /usr/local 비교 |
 | `linux-shell-scripting.md` | Bash 기초, sed, awk, 실전 스크립트 패턴 |
 | `linux-aws-cli.md` | AWS CLI, EC2/S3/SSM/CloudWatch 자동화 |
+| `linux-os-upgrade.md` | 인플레이스 업그레이드, 블루/그린 전략 |
+| `linux-environment-variables.md` | 환경변수, .bashrc/.profile 차이, systemd env |
+| `linux-cpu-cores.md` | 물리/논리 코어, 명령어 스레드 특성, 병렬화 |
+| `linux-memory.md` | 가상메모리, 페이지 캐시, OOM killer, Swap |
+| `linux-process-thread.md` | 프로세스 vs 스레드, fork/exec, namespace/cgroup |
 
 ### security/
 | 파일 | 주제 |
@@ -73,12 +84,9 @@ linux-basic/
 
 ## 추가 예정 주제 (아이디어)
 
-- `networking/linux-ss-netstat.md` - 소켓 상태 조회 (`ss`, `netstat`)
 - `networking/linux-tcpdump.md` - 패킷 캡처 및 분석
 - `storage/linux-lvm.md` - 논리 볼륨 관리자
-- `storage/linux-df-du.md` - 디스크 사용량 조회
 - `system/linux-systemctl.md` - systemd 서비스 관리 심화
 - `system/linux-logrotate.md` - 로그 파일 순환 관리
-- `system/linux-environment-variables.md` - 환경변수 관리 (.bashrc/.profile/export)
 - `security/linux-sudo.md` - sudo 설정 및 /etc/sudoers
 - `security/linux-ufw-firewalld.md` - 방화벽 프론트엔드 도구
