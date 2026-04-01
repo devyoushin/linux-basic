@@ -491,7 +491,116 @@ while IFS= read -r line; do
 done < "$TEMPLATE_FILE"
 ```
 
-## 6. 자주 하는 실수
+## 6. grep 실전
+
+```bash
+# 기본
+grep -r 'pattern' ./dir/            # 재귀 탐색
+grep -i 'error' app.log             # 대소문자 무시
+grep -v 'DEBUG' app.log             # 역매칭 (패턴 없는 줄)
+grep -c 'ERROR' app.log             # 매칭된 줄 수만 출력
+grep -l 'pattern' *.conf            # 매칭된 파일명만 출력
+
+# 컨텍스트 출력
+grep -A 3 'ERROR' app.log           # 매칭 후 3줄
+grep -B 3 'ERROR' app.log           # 매칭 전 3줄
+grep -C 3 'ERROR' app.log           # 매칭 전후 3줄
+
+# 확장 정규식 (-E)
+grep -E 'error|warn|crit' syslog
+grep -E '^(GET|POST) /api' access.log
+
+# 값만 추출 (-o: 매칭 부분만, -P: Perl 정규식)
+grep -oP '"\w+"\s*:\s*\K\d+' response.json      # JSON 숫자 값 추출
+grep -oP '\d{1,3}(\.\d{1,3}){3}' access.log     # IP 주소 추출
+
+# 실전
+grep -rn 'TODO\|FIXME' ./src/                    # 소스에서 TODO/FIXME
+grep -v '^\s*#' nginx.conf | grep -v '^\s*$'     # 주석·빈 줄 제거 후 유효 설정만
+```
+
+---
+
+## 7. awk 고급 패턴
+
+```bash
+# 중복 줄 제거 (순서 유지, sort | uniq와 달리 정렬 불필요)
+awk '!seen[$0]++' file.txt
+
+# 특정 컬럼 기준 중복 제거
+awk -F, '!seen[$1]++' data.csv
+
+# 두 파일 조인 (NR==FNR: 첫 번째 파일 처리 중일 때만 true)
+# file1.txt의 $1을 키로 file2.txt의 $1과 매칭
+awk 'NR==FNR {a[$1]=$2; next} $1 in a {print $1, a[$1], $2}' file1.txt file2.txt
+
+# p95 레이턴시 계산
+awk '{print $NF}' access.log | sort -n \
+  | awk 'BEGIN{c=0} {a[c++]=$1} END{print "p95:", a[int(c*0.95)], "ms"}'
+
+# 프로세스별 메모리 합산
+ps aux | awk 'NR>1 {mem[$11]+=$6} END {for(p in mem) print mem[p], p}' \
+  | sort -rn | head -10 \
+  | awk '{printf "%8.1f MB  %s\n", $1/1024, $2}'
+
+# 이전 줄 값과 비교 (차이값 계산)
+awk '{print $1, $1-prev; prev=$1}' metrics.txt
+```
+
+---
+
+## 8. xargs & 병렬 처리
+
+```bash
+# 기본 xargs
+find . -name "*.log" -mtime +7 | xargs rm -f
+cat urls.txt | xargs -I{} curl -sf {}
+
+# 파일명에 공백 대비 (-0 옵션, find -print0과 조합)
+find . -name "*.txt" -print0 | xargs -0 grep 'pattern'
+
+# 병렬 실행 (-P: 동시 실행 수)
+cat servers.txt | xargs -P 10 -I{} ssh {} 'uptime'
+
+# GNU Parallel (xargs보다 강력)
+# 설치: apt install parallel / brew install parallel
+cat hosts.txt | parallel -j 20 'ssh {} "df -h | tail -1"'
+parallel -j 4 'gzip {}' ::: *.log            # 로그 파일 병렬 압축
+```
+
+---
+
+## 9. 파이프 조합 실전 패턴
+
+```bash
+# 접속 IP별 요청 수 + 상태코드 집계를 한 번에
+awk '{ip[$1]++; code[$9]++}
+     END {
+       print "=== IP Top 5 ==="; for(k in ip) print ip[k], k
+       print "=== Status ==="  ; for(k in code) print code[k], k
+     }' access.log | sort -rn
+
+# 디스크 사용률 80% 이상인 파티션 알림
+df -h | awk 'NR>1 && int($5) >= 80 {print $6, $5}' \
+  | while read mount usage; do
+      echo "WARN: $mount is $usage full"
+    done
+
+# 포트별 연결 수 (ss 출력 가공)
+ss -tn state established | awk 'NR>1 {split($4,a,":"); port[a[length(a)]]++}
+  END {for(p in port) print port[p], p}' | sort -rn | head -10
+
+# 설정 파일에서 유효한 항목만 추출 (주석·빈 줄·앞뒤 공백 제거)
+grep -v '^\s*#' config.conf | grep -v '^\s*$' | sed 's/^\s*//; s/\s*$//'
+
+# 여러 서버 동시 상태 확인
+cat servers.txt | xargs -P 10 -I{} bash -c \
+  'echo -n "{}: "; ssh -o ConnectTimeout=3 {} "uptime | awk -F: \"{print \\\$NF}\"" 2>/dev/null || echo "접속 불가"'
+```
+
+---
+
+## 10. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |---|---|
@@ -501,3 +610,5 @@ done < "$TEMPLATE_FILE"
 | awk에서 문자열 비교를 `==` 대신 숫자 비교 | 문자열: `$1 == "foo"`, 숫자: `$3 > 100` |
 | 함수 내 변수가 전역을 오염 | 함수 내 변수는 반드시 `local` 선언 |
 | 파이프 중간 실패 감지 못함 | `set -o pipefail` 또는 `PIPESTATUS` 확인 |
+| 대용량 파일에 `cat \| grep` | `grep 'pattern' file` 직접 지정이 빠름 |
+| `sort \| uniq`로 중복 제거 시 순서 소실 | 순서 유지 필요하면 `awk '!seen[$0]++'` |
