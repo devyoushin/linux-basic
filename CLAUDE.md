@@ -59,6 +59,7 @@ linux-basic/
 | `linux-volume-mount.md` | EBS 볼륨 연결 → 포맷 → 마운트 → 확장 |
 | `linux-df-du.md` | 디스크 사용량, 디스크 풀 장애 대응 |
 | `linux-package-managers.md` | rpm/yum/dnf vs apt/dpkg 비교 |
+| `linux-nfs-efs-mount.md` | NFS/EFS 마운트, UID/GID 권한 모델, 액세스 포인트 |
 
 ### system/
 | 파일 | 주제 |
