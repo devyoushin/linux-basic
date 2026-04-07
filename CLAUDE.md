@@ -50,6 +50,9 @@ linux-basic/
 | `linux-ss-netstat.md` | 포트/소켓 상태 조회, TCP 연결 상태 |
 | `linux-load-balancer.md` | L4/L7 동작원리, 알고리즘, ALB/NLB, 장애 패턴 |
 | `linux-dns-internals.md` | DNS 쿼리 흐름, TTL, dig 실전, Route53 |
+| `linux-network-tuning.md` | TCP 스택 튜닝, 소켓 버퍼, 고성능 네트워크 설정 |
+| `linux-nftables.md` | nftables 개념, iptables 대체, 규칙 작성 |
+| `linux-tc.md` | tc(traffic control), 대역폭 제한, QoS, netem |
 
 ### storage/
 | 파일 | 주제 |
@@ -60,6 +63,9 @@ linux-basic/
 | `linux-df-du.md` | 디스크 사용량, 디스크 풀 장애 대응 |
 | `linux-package-managers.md` | rpm/yum/dnf vs apt/dpkg 비교 |
 | `linux-nfs-efs-mount.md` | NFS/EFS 마운트, UID/GID 권한 모델, 액세스 포인트 |
+| `linux-inode.md` | inode 구조, hardlink/symlink, inode 고갈 장애 |
+| `linux-lvm.md` | LVM PV/VG/LV 개념, 볼륨 생성·확장·스냅샷 |
+| `linux-overlayfs.md` | OverlayFS 레이어 구조, Docker/컨테이너 연계 |
 
 ### system/
 | 파일 | 주제 |
@@ -76,17 +82,26 @@ linux-basic/
 | `linux-cpu-cores.md` | 물리/논리 코어, 명령어 스레드 특성, 병렬화 |
 | `linux-memory.md` | 가상메모리, 페이지 캐시, OOM killer, Swap |
 | `linux-process-thread.md` | 프로세스 vs 스레드, fork/exec, namespace/cgroup |
+| `linux-cgroup.md` | cgroup v1/v2, cpu/memory/io 제한, systemd, Docker/K8s 연계 |
+| `linux-namespace.md` | Linux namespace 종류, pid/net/mnt/user ns, 컨테이너 격리 |
+| `linux-hugepages.md` | HugePage 원리, 설정, NUMA, JVM/DB 연계 |
+| `linux-sysctl.md` | 커널 파라미터 튜닝, net/vm/fs 주요 항목, 영구 적용 |
+| `linux-perf.md` | perf 명령어, CPU 프로파일링, flame graph |
+| `linux-strace.md` | strace 시스템콜 추적, 장애 디버깅 실전 |
+| `linux-ebpf.md` | eBPF 동작 원리, bcc/bpftrace 도구, 관측 가능성 |
+| `linux-coredump.md` | coredump 생성·분석, gdb 활용, ulimit 설정 |
 
 ### security/
 | 파일 | 주제 |
 |---|---|
 | `linux-ssh-sshd.md` | SSH 키 관리, sshd 보안 설정, Bastion |
 | `linux-file-permissions.md` | chmod, chown, umask, 특수 권한 비트 |
+| `linux-audit.md` | auditd 시스템 감사, 규칙 설정, aureport/ausearch |
+| `linux-seccomp.md` | seccomp 시스템콜 필터링, Docker/K8s 보안 프로파일 |
 
 ## 추가 예정 주제 (아이디어)
 
 - `networking/linux-tcpdump.md` - 패킷 캡처 및 분석
-- `storage/linux-lvm.md` - 논리 볼륨 관리자
 - `system/linux-systemctl.md` - systemd 서비스 관리 심화
 - `system/linux-logrotate.md` - 로그 파일 순환 관리
 - `security/linux-sudo.md` - sudo 설정 및 /etc/sudoers
