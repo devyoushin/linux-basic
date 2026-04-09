@@ -66,6 +66,7 @@ linux-basic/
 | `linux-inode.md` | inode 구조, hardlink/symlink, inode 고갈 장애 |
 | `linux-lvm.md` | LVM PV/VG/LV 개념, 볼륨 생성·확장·스냅샷 |
 | `linux-overlayfs.md` | OverlayFS 레이어 구조, Docker/컨테이너 연계 |
+| `linux-large-dir-ops.md` | 대용량 파일 트리에서 du/chown/find 느린 원리와 가속 기법 |
 
 ### system/
 | 파일 | 주제 |
@@ -88,6 +89,7 @@ linux-basic/
 | `linux-sysctl.md` | 커널 파라미터 튜닝, net/vm/fs 주요 항목, 영구 적용 |
 | `linux-perf.md` | perf 명령어, CPU 프로파일링, flame graph |
 | `linux-strace.md` | strace 시스템콜 추적, 장애 디버깅 실전 |
+| `linux-syscall.md` | syscall 동작 원리, Ring/vDSO/KPTI/io_uring, 비용 분석 |
 | `linux-ebpf.md` | eBPF 동작 원리, bcc/bpftrace 도구, 관측 가능성 |
 | `linux-coredump.md` | coredump 생성·분석, gdb 활용, ulimit 설정 |
 
