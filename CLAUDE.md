@@ -67,6 +67,7 @@ linux-basic/
 | `linux-lvm.md` | LVM PV/VG/LV 개념, 볼륨 생성·확장·스냅샷 |
 | `linux-overlayfs.md` | OverlayFS 레이어 구조, Docker/컨테이너 연계 |
 | `linux-large-dir-ops.md` | 대용량 파일 트리에서 du/chown/find 느린 원리와 가속 기법 |
+| `linux-bulk-transfer.md` | 대량 데이터 전송 전략: rsync 심화, 멀티프로세스 병렬화, tar 파이프라인, 클라우드 고속 전송 |
 
 ### system/
 | 파일 | 주제 |
