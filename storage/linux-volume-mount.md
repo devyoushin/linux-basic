@@ -31,9 +31,96 @@ EC2에 Attach          → lsblk로 새 디바이스 확인
 
 ---
 
-## 3. 단계별 실습
+## 3. 파티셔닝 전략
 
-### 3.1 새 볼륨 확인 (lsblk)
+### 3.1 파티셔닝이 필요한 경우
+
+AWS EBS 데이터 볼륨은 **파티션 없이 디바이스 전체에 직접 포맷**하는 것이 표준이다.
+파티셔닝이 필요한 경우는 다음과 같다.
+
+| 상황 | 이유 |
+|---|---|
+| 부트 디스크 | GRUB, `/boot`, swap 분리 필수 |
+| 하나의 디스크를 여러 용도로 분리 | 로그 파티션이 꽉 차도 루트에 영향 없음 |
+| LVM PV 생성 시 | 관례상 파티션 위에 PV를 올리는 경우 많음 |
+| 2TB 이상 볼륨 (GPT 필요) | MBR은 2TB 한계 존재 |
+
+### 3.2 MBR vs GPT
+
+| | MBR | GPT |
+|---|---|---|
+| 최대 볼륨 크기 | 2TB | 9.4ZB (사실상 무제한) |
+| 최대 파티션 수 | 4개 (주 파티션) | 128개 |
+| 부트 방식 | 레거시 BIOS | UEFI (필수) |
+| 복구 데이터 | 없음 | 디스크 끝에 백업 GPT 헤더 |
+| AWS EBS 2TB 이상 | 사용 불가 | 사용 가능 |
+
+> **실무 기준**: AWS에서 신규 볼륨은 항상 GPT를 사용한다. 온프레미스 레거시 서버만 MBR.
+
+### 3.3 파티션 도구 비교
+
+```bash
+# fdisk: MBR 위주, 대화형 (구형 환경)
+fdisk /dev/xvdf
+# n(새 파티션) → p(주) → 1 → Enter → +50G → w(저장)
+
+# gdisk: GPT 전용 (fdisk와 인터페이스 동일, GPT용)
+gdisk /dev/xvdf
+
+# parted: MBR/GPT 모두 지원, 스크립트 자동화에 적합
+parted /dev/xvdf --script mklabel gpt            # GPT 레이블 생성
+parted /dev/xvdf --script mkpart primary 0% 50%  # 첫 번째 파티션 (50%)
+parted /dev/xvdf --script mkpart primary 50% 100% # 두 번째 파티션 (나머지)
+parted /dev/xvdf print                            # 파티션 목록 확인
+```
+
+### 3.4 실무 파티션 레이아웃 패턴
+
+**패턴 1: EBS 데이터 볼륨 (파티션 없이 직접 포맷) - AWS 표준**
+```
+/dev/nvme1n1  ──── ext4/xfs 파일시스템 (볼륨 전체)
+```
+- 확장 시 `resize2fs` / `xfs_growfs` 한 번으로 끝
+- 파티션 확장(`growpart`) 불필요
+
+**패턴 2: 온프레미스 루트 디스크 (단일 목적 서버)**
+```
+/dev/sda1  500MB   /boot   ext4
+/dev/sda2    8GB   swap
+/dev/sda3   나머지  /       xfs
+```
+
+**패턴 3: DB 서버 (격리 중심)**
+```
+루트 볼륨  50GB    /           OS + 바이너리
+EBS vol1  500GB   /data        DB 데이터 파일
+EBS vol2   50GB   /var/log     DB + 시스템 로그
+```
+- 데이터 볼륨 독립 스냅샷 가능
+- 로그가 꽉 찼을 때 DB 데이터에 영향 없음
+
+**패턴 4: 고가용성 웹 서버**
+```
+루트 볼륨  30GB    /           OS
+EBS vol1  100GB   /var/lib     앱 데이터
+tmpfs       4GB   /tmp         메모리 기반 임시 파일
+```
+
+### 3.5 AWS에서 볼륨을 분리해야 하는 이유
+
+| 이유 | 설명 |
+|---|---|
+| **성능 격리** | 로그 I/O가 DB I/O에 영향 주지 않음 |
+| **독립 확장** | 데이터만 300GB → 600GB 확장, OS 볼륨 건드리지 않음 |
+| **스냅샷 단위 분리** | 데이터 볼륨만 매시간 스냅샷, 루트는 일별 |
+| **장애 격리** | 로그 파티션 풀이 서비스 중단으로 이어지지 않음 |
+| **AMI 경량화** | 루트 볼륨 작게 유지 → AMI 생성/복사 빠름 |
+
+---
+
+## 4. 단계별 실습
+
+### 4.1 새 볼륨 확인 (lsblk)
 
 EBS를 EC2에 Attach하면 디바이스 파일이 생성된다. 먼저 어떤 이름으로 잡혔는지 확인한다.
 
@@ -65,7 +152,7 @@ nvme list   # nvme-cli 패키지 필요: yum install nvme-cli
 # nvme id-ctrl /dev/nvme1n1 -v | grep sdf  로 매핑 확인 가능
 ```
 
-### 3.2 파일시스템 포맷
+### 4.2 파일시스템 포맷
 
 > **주의**: 포맷은 기존 데이터를 전부 삭제한다. 반드시 신규 볼륨 또는 데이터 백업 후 진행한다.
 
@@ -94,7 +181,7 @@ lsblk -o NAME,UUID,FSTYPE /dev/xvdf
 | Amazon Linux 2023 기본 | — | xfs |
 | Ubuntu 기본 | ext4 | — |
 
-### 3.3 마운트 포인트 생성 및 마운트
+### 4.3 마운트 포인트 생성 및 마운트
 
 ```bash
 # 마운트 포인트 디렉토리 생성
@@ -113,7 +200,7 @@ lsblk
 # xvdf    202:80   0  100G  0 disk /data  ← MOUNTPOINT 표시
 ```
 
-### 3.4 /etc/fstab 영구 등록
+### 4.4 /etc/fstab 영구 등록
 
 디바이스 이름(`/dev/xvdf`)은 재부팅 시 바뀔 수 있다. **반드시 UUID를 사용**한다.
 
@@ -149,7 +236,7 @@ UUID=a1b2...  /data  ext4  defaults,nofail  0  2
 
 > **`nofail` 옵션은 AWS EBS에서 필수다.** EBS가 연결 안 된 상태로 부팅 시 이 옵션이 없으면 부팅이 멈춘다.
 
-### 3.5 fstab 검증 (재부팅 전 반드시 실행)
+### 4.5 fstab 검증 (재부팅 전 반드시 실행)
 
 ```bash
 # fstab의 모든 항목 마운트 시도 (오류 즉시 확인 가능)
@@ -162,7 +249,7 @@ lsblk
 
 ---
 
-## 4. 볼륨 확장 (온라인 리사이즈)
+## 5. 볼륨 확장 (온라인 리사이즈)
 
 AWS에서 EBS 볼륨 크기를 늘린 후 OS에도 반영하는 과정이다. **재부팅 없이 가능하다.**
 
@@ -190,7 +277,7 @@ df -h /data
 
 ---
 
-## 5. Terraform으로 EBS 볼륨 자동화
+## 6. Terraform으로 EBS 볼륨 자동화
 
 ```hcl
 resource "aws_ebs_volume" "data" {
@@ -237,7 +324,7 @@ resource "aws_instance" "app" {
 
 ---
 
-## 6. 언마운트 및 볼륨 분리
+## 7. 언마운트 및 볼륨 분리
 
 ```bash
 # 마운트 해제 전 사용 중인 프로세스 확인
@@ -258,7 +345,7 @@ vi /etc/fstab
 aws ec2 detach-volume --volume-id vol-0123456789abcdef0
 ```
 
-## 7. 자주 하는 실수
+## 8. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |---|---|

@@ -175,7 +175,116 @@ systemctl restart nginx   # 예시
 
 ---
 
-## 5. 디스크 사용량 모니터링 스크립트
+## 5. 디스크 사용률 적정 기준
+
+### 5.1 볼륨 용도별 권장 임계값
+
+| 볼륨 용도 | 경고 기준 | 위험 기준 | 이유 |
+|---|---|---|---|
+| 루트 (`/`) | **70%** | **80%** | OS 업데이트, 패키지 설치 여유 공간 필요 |
+| 데이터 볼륨 (`/data`) | **75%** | **85%** | 작업 임시 파일, 인덱스 재생성 공간 |
+| 로그 볼륨 (`/var/log`) | **80%** | **90%** | 증가 패턴이 예측 가능해 더 높게 허용 가능 |
+| DB 볼륨 | **70%** | **80%** | 트랜잭션 로그, 임시 정렬 공간 필요 |
+| 임시 파일 (`/tmp`) | **60%** | **75%** | 스파이크성 급증 대비 여유 크게 유지 |
+
+> **실무 기준**: 루트 볼륨은 80%를 넘기 전에 반드시 확장 계획을 세운다. 80~90% 구간은 예상보다 빠르게 포화된다.
+
+### 5.2 ext4 예약 공간 (reserved blocks)
+
+ext4는 기본적으로 **전체의 5%를 root 전용 예약 공간**으로 남긴다.
+일반 사용자는 이 공간을 쓸 수 없으므로 `df -h`의 `Use%` 100%는 실제로는 ~95% 사용 상태다.
+
+```bash
+# 현재 예약 블록 비율 확인
+tune2fs -l /dev/xvdf | grep -i reserved
+# Reserved block count: 524288
+# Reserved GDT blocks: 255
+
+# 데이터 전용 볼륨은 예약 공간 줄여도 됨 (1%로 축소)
+tune2fs -m 1 /dev/xvdf
+# ※ 루트 볼륨에는 적용 금지 - OS가 꽉 찼을 때 root 작업 공간 없어짐
+
+# xfs는 예약 블록 개념 없음 (Use% 100% = 실제 100%)
+```
+
+### 5.3 inode 사용률 기준
+
+디스크 용량이 남아도 inode가 소진되면 **"No space left on device"** 에러 발생.
+
+```bash
+# inode 사용률 확인
+df -i
+# Filesystem      Inodes  IUsed   IFree IUse% Mounted on
+# /dev/xvda1     1310720 312048  998672   24% /
+
+# 위험 신호: IUse% 70% 이상이면 주의
+```
+
+| inode 사용률 | 상태 | 조치 |
+|---|---|---|
+| ~60% | 정상 | 모니터링 유지 |
+| 60~80% | 주의 | 소규모 파일 생성 패턴 확인 (캐시, 세션 파일) |
+| 80~95% | 경고 | 불필요한 소규모 파일 정리 또는 볼륨 재생성 |
+| 95%+ | 위험 | 즉시 정리 or 파일시스템 재포맷 (inode 수 늘려서) |
+
+```bash
+# inode 고갈 원인 찾기 - 파일 수 많은 디렉토리
+find / -xdev -printf '%h\n' 2>/dev/null | sort | uniq -c | sort -rn | head -10
+
+# 특정 디렉토리 파일 수 세기
+find /var/spool -type f | wc -l
+```
+
+### 5.4 확장 트리거 기준 (CloudWatch 알람 예시)
+
+```
+사용률 흐름:        조치:
+0% ────────────────────────────────────────
+                   정상 운영
+70% ───────────────────────────────────────
+                   [계획] 확장 일정 수립, 볼륨 크기 검토
+80% ───────────────────────────────────────
+                   [알람] CloudWatch 경보 발생, 담당자 알림
+                          → EBS 콘솔에서 볼륨 확장 시작
+85% ───────────────────────────────────────
+                   [긴급] 즉시 불필요한 파일 정리
+                          + 확장 완료 전 임시 공간 확보
+90% ───────────────────────────────────────
+                   [장애 직전] 서비스 영향 가능
+95%+ ──────────────────────────────────────
+                   [장애] 쓰기 실패, 서비스 중단
+```
+
+```bash
+# CloudWatch에서 EBS 사용률 알람 생성 (AWS CLI)
+aws cloudwatch put-metric-alarm \
+  --alarm-name "disk-usage-high-root" \
+  --metric-name disk_used_percent \
+  --namespace CWAgent \               # CloudWatch Agent 필요
+  --dimensions Name=path,Value=/ \
+  --statistic Average \
+  --period 300 \
+  --evaluation-periods 2 \
+  --threshold 80 \
+  --comparison-operator GreaterThanOrEqualToThreshold \
+  --alarm-actions arn:aws:sns:ap-northeast-2:123456789012:ops-alert
+```
+
+### 5.5 용량 증가 추세 분석
+
+현재 사용률만 보지 말고 **증가 속도**를 봐야 한다. 70%여도 하루 1%씩 늘면 30일 후 장애다.
+
+```bash
+# 매일 df 결과를 파일로 저장 (crontab)
+# 0 9 * * * df -h >> /var/log/disk_usage_history.log
+
+# 저장된 이력에서 특정 파티션 추이 확인
+grep "^/dev/xvda1" /var/log/disk_usage_history.log | awk '{print $5}' | tail -30
+```
+
+---
+
+## 6. 디스크 사용량 모니터링 스크립트
 
 ```bash
 #!/bin/bash
@@ -218,7 +327,7 @@ if (( ALERT == 1 )) && [[ -n "$SLACK_WEBHOOK" ]]; then
 fi
 ```
 
-## 6. 자주 하는 실수
+## 7. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |---|---|
