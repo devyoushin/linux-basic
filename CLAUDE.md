@@ -2,21 +2,62 @@
 
 이 저장소는 Linux 기초 및 실무 운영에 필요한 내용을 주제별로 정리한 문서 모음입니다.
 
+---
+
 ## 저장소 목적
 
 - Linux 시스템 운영에 필요한 핵심 개념을 **한국어**로 정리
 - 단순 명령어 나열이 아닌, **왜** 쓰는지와 **실무 적용법**을 함께 설명
 - 클라우드(AWS) 및 IaC(Terraform, Ansible) 환경과 연계한 실전 예제 포함
 
-## 폴더 구조
+---
+
+## 디렉토리 구조
 
 ```
 linux-basic/
-├── networking/     # 네트워크 설정 및 트러블슈팅
-├── storage/        # 스토리지, 파일시스템, 마운트
-├── system/         # 부팅, 프로세스, 로그, 스케줄링
-└── security/       # 접근 제어, 권한, SSH
+├── CLAUDE.md                  # 이 파일 (자동 로드)
+├── .claude/
+│   ├── settings.json          # 권한 설정 + PostToolUse 훅
+│   └── commands/              # 커스텀 슬래시 명령어
+│       ├── new-doc.md         # /new-doc — 새 문서 생성
+│       ├── new-runbook.md     # /new-runbook — 새 런북 생성
+│       ├── review-doc.md      # /review-doc — 문서 품질 검토
+│       ├── add-troubleshooting.md  # /add-troubleshooting — 트러블슈팅 추가
+│       └── search-kb.md       # /search-kb — 지식베이스 검색
+├── agents/                    # 전문 에이전트 정의
+│   ├── doc-writer.md          # Linux 문서 작성 전문가
+│   ├── performance-advisor.md # 성능 분석 전문가
+│   ├── security-auditor.md    # 보안 감사 전문가
+│   └── kernel-expert.md       # 커널 내부 전문가
+├── templates/                 # 문서 템플릿
+│   ├── service-doc.md         # 서비스/도구 문서 템플릿
+│   ├── runbook.md             # 운영 런북 템플릿
+│   └── incident-report.md     # 장애 보고서 템플릿
+├── rules/                     # Claude 작성 규칙
+│   ├── doc-writing.md         # 문서 작성 원칙
+│   ├── linux-conventions.md   # Linux 표준 관행
+│   ├── security-checklist.md  # 보안 체크리스트
+│   └── monitoring.md          # 모니터링 지침
+├── networking/                # 네트워크 설정 및 트러블슈팅
+├── storage/                   # 스토리지, 파일시스템, 마운트
+├── system/                    # 부팅, 프로세스, 로그, 스케줄링
+└── security/                  # 접근 제어, 권한, SSH
 ```
+
+---
+
+## 커스텀 슬래시 명령어
+
+| 명령어 | 설명 | 사용 예시 |
+|--------|------|---------|
+| `/new-doc` | 새 Linux 문서 생성 | `/new-doc system/linux-ulimit` |
+| `/new-runbook` | 새 런북 생성 | `/new-runbook 디스크 풀 대응` |
+| `/review-doc` | 문서 품질 검토 | `/review-doc system/linux-memory.md` |
+| `/add-troubleshooting` | 트러블슈팅 케이스 추가 | `/add-troubleshooting OOM killer` |
+| `/search-kb` | 지식베이스 검색 | `/search-kb TCP 튜닝` |
+
+---
 
 ## 문서 작성 규칙
 
@@ -38,6 +79,8 @@ linux-basic/
 ### 파일 네이밍
 - `linux-{주제}.md` 형식 (예: `linux-iptables.md`)
 - 비교/대조 주제는 `linux-{A}-vs-{B}.md` 형식
+
+---
 
 ## 현재 문서 목록
 
@@ -79,7 +122,7 @@ linux-basic/
 | `linux-directory-structure.md` | FHS 디렉토리 구조, /opt vs /usr/local 비교 |
 | `linux-shell-scripting.md` | Bash 기초, sed, awk, 실전 스크립트 패턴 |
 | `linux-aws-cli.md` | AWS CLI, EC2/S3/SSM/CloudWatch 자동화 |
-| `linux-os-upgrade.md` | 인플레이스 업그레이드, 블루/그린 전략 |
+| `linux-os-upgrade.md` | 인플레이스 업그레이드, 블루/그린 전략, 보안 솔루션 충돌 트러블슈팅 |
 | `linux-environment-variables.md` | 환경변수, .bashrc/.profile 차이, systemd env |
 | `linux-cpu-cores.md` | 물리/논리 코어, 명령어 스레드 특성, 병렬화 |
 | `linux-memory.md` | 가상메모리, 페이지 캐시, OOM killer, Swap |
@@ -102,10 +145,12 @@ linux-basic/
 | `linux-audit.md` | auditd 시스템 감사, 규칙 설정, aureport/ausearch |
 | `linux-seccomp.md` | seccomp 시스템콜 필터링, Docker/K8s 보안 프로파일 |
 
-## 추가 예정 주제 (아이디어)
+---
 
-- `networking/linux-tcpdump.md` - 패킷 캡처 및 분석
-- `system/linux-systemctl.md` - systemd 서비스 관리 심화
-- `system/linux-logrotate.md` - 로그 파일 순환 관리
-- `security/linux-sudo.md` - sudo 설정 및 /etc/sudoers
-- `security/linux-ufw-firewalld.md` - 방화벽 프론트엔드 도구
+## 백로그 (추가 예정)
+
+- `networking/linux-tcpdump.md` — 패킷 캡처 및 분석
+- `system/linux-systemctl.md` — systemd 서비스 관리 심화
+- `system/linux-logrotate.md` — 로그 파일 순환 관리
+- `security/linux-sudo.md` — sudo 설정 및 /etc/sudoers
+- `security/linux-ufw-firewalld.md` — 방화벽 프론트엔드 도구
