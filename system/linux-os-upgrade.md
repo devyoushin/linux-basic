@@ -273,7 +273,278 @@ grub2-set-default 1   # 1 = 두 번째 항목(이전 커널)
 □ 재부팅 1회 실시 및 자동 시작 확인
 ```
 
-## 8. 자주 하는 실수
+## 8. 보안 솔루션 충돌 트러블슈팅
+
+OS 업그레이드 실패 원인 중 상당수는 보안 솔루션(EDR, 백신, FIM, IPS 에이전트)과의 충돌이다.
+보안팀의 협조 없이 단독으로 해결하려다 보안 정책 위반이 될 수 있으므로, 반드시 보안팀과 사전 협의 후 진행한다.
+
+### 8.1 충돌 유형별 원인
+
+| 충돌 유형 | 원인 | 대표 증상 |
+|---|---|---|
+| **커널 모듈 불일치** | DKMS로 빌드된 보안 에이전트 모듈이 신규 커널 버전을 지원 안 함 | 업그레이드 후 부팅 실패, 커널 패닉 |
+| **파일 무결성 모니터링(FIM) 차단** | AIDE, Tripwire 등이 시스템 파일 변경을 실시간 차단 | dpkg/rpm 설치 중 권한 오류, 파일 교체 실패 |
+| **패키지 관리자 훅 충돌** | 보안 에이전트가 apt/yum 훅을 점유해 충돌 발생 | 패키지 설치 hang, dpkg lock 오류 |
+| **시스템콜/프로세스 모니터링 간섭** | EDR이 업그레이드 프로세스를 악성 행위로 오탐해 kill | 업그레이드 프로세스 갑작스러운 종료 |
+| **에이전트 자체 손상** | 업그레이드 중 에이전트 바이너리/라이브러리가 교체되어 동작 불가 | 업그레이드 후 보안 에이전트 서비스 실패 |
+| **SELinux/AppArmor 정책 충돌** | 보안 에이전트가 커스터마이즈한 MAC 정책이 신 OS 기본 정책과 충돌 | AVC denied, 서비스 시작 실패 |
+
+### 8.2 충돌 진단
+
+#### 어떤 보안 솔루션이 설치되어 있는지 파악
+
+```bash
+# 실행 중인 보안 관련 서비스 확인
+systemctl list-units --type=service | grep -Ei \
+  'falcon|crowdstrike|sentinelone|cbagent|carbon|trend|ds_agent|ahnlab|v3|symantec|mcafee|trellix|aide|ossec|wazuh'
+
+# 보안 에이전트가 설치한 커널 모듈 확인
+lsmod | grep -Ei 'falcon|cs|cbsensor|ds_agent|vshield'
+
+# DKMS로 관리되는 커널 모듈 목록
+dkms status
+
+# 설치된 패키지 중 보안 관련 항목 검색 (Ubuntu)
+dpkg -l | grep -Ei 'falcon|crowdstrike|sentinelone|trend|mcafee|trellix|aide|ossec'
+
+# 설치된 패키지 중 보안 관련 항목 검색 (RHEL 계열)
+rpm -qa | grep -Ei 'falcon|crowdstrike|sentinelone|trend|mcafee|trellix|aide|ossec'
+```
+
+#### 업그레이드 로그에서 차단 흔적 찾기
+
+```bash
+# Ubuntu do-release-upgrade 로그
+cat /var/log/dist-upgrade/main.log
+grep -i 'error\|fail\|kill\|denied' /var/log/dist-upgrade/main.log
+
+# dpkg 설치 실패 로그
+cat /var/log/dpkg.log | grep -i 'error\|half-installed'
+
+# RHEL leapp 사전 검사 리포트
+cat /var/log/leapp/leapp-report.txt | grep -A5 'Risk Factor: high'
+
+# SELinux 차단 로그
+ausearch -m avc --start today | grep denied
+dmesg | grep -i 'avc: denied'
+
+# 시스템 전체 에러 로그 (업그레이드 시점 기준)
+journalctl -p err --since "2 hours ago"
+```
+
+#### DKMS 모듈과 커널 버전 불일치 확인
+
+```bash
+# 현재 커널과 DKMS 모듈 빌드 상태 비교
+dkms status
+# 출력 예시:
+# falconctl/6.44.0, 5.15.0-91-generic, x86_64: installed   ← 정상
+# falconctl/6.44.0, 6.5.0-35-generic, x86_64: added        ← 미빌드 = 문제
+
+# 신규 커널용 모듈 강제 재빌드 시도
+KERN_VER=$(uname -r)
+dkms autoinstall -k "$KERN_VER"
+dkms status
+```
+
+### 8.3 보안 솔루션별 대응 방법
+
+#### CrowdStrike Falcon
+
+```bash
+# Falcon 센서 버전 확인 (신 OS 지원 여부 공식 문서 대조)
+/opt/CrowdStrike/falconctl -g --version
+
+# 업그레이드 전: 보안팀에 임시 비활성화 요청 또는
+# Falcon 센서를 신 OS 지원 버전으로 선업그레이드
+
+# 업그레이드 후 Falcon 서비스 상태 확인
+systemctl status falcon-sensor
+
+# 커널 모듈 재로드 필요 시
+rmmod falcon_lsm_serviceable
+modprobe falcon_lsm_serviceable
+```
+
+#### SentinelOne
+
+```bash
+# 에이전트 상태 확인
+/opt/sentinelone/bin/sentinelctl status
+
+# 업그레이드 전 passphrase로 에이전트 보호 해제 (보안팀 passphrase 필요)
+/opt/sentinelone/bin/sentinelctl unprotect --passphrase "PASSPHRASE"
+
+# 패키지 제거 후 OS 업그레이드, 완료 후 재설치
+apt remove sentinelone    # Ubuntu
+rpm -e SentinelAgent      # RHEL
+
+# OS 업그레이드 완료 후 신 OS용 에이전트 패키지 재설치
+```
+
+#### Trend Micro Deep Security Agent
+
+```bash
+# ds_agent 서비스 확인
+systemctl status ds_agent
+
+# 업그레이드 전 에이전트 임시 중지 (보안팀 승인 필요)
+systemctl stop ds_agent
+
+# 업그레이드 후 에이전트 재시작 및 버전 확인
+systemctl start ds_agent
+/opt/ds_agent/dsa_query -c GetAgentStatus
+```
+
+#### AhnLab V3 (국내 환경)
+
+```bash
+# V3 서비스 확인
+systemctl status v3medic   # 또는 alyac, v3net 등 에이전트명 확인
+
+# 설치 경로 확인
+find /opt /usr/local -name "v3*" -o -name "alyac*" 2>/dev/null
+
+# 업그레이드 전 라이선스/버전 정보 저장
+cat /opt/v3medic/version   # 경로는 설치 환경에 따라 다름
+
+# 업그레이드 후 에이전트 재설치 또는 업데이트
+# → 보안 담당자에게 신 OS용 패키지 요청
+```
+
+#### AIDE / Tripwire (파일 무결성 모니터링)
+
+```bash
+# AIDE 실행 여부 확인
+systemctl status aide
+crontab -l | grep aide
+cat /etc/cron.d/aide 2>/dev/null
+
+# 업그레이드 전 AIDE 일시 중지
+systemctl stop aide
+systemctl disable aide   # 업그레이드 기간 동안만
+
+# Tripwire
+systemctl stop tripwire-twprint
+
+# 업그레이드 완료 후 DB 재초기화 (시스템 파일이 정상적으로 바뀌었으므로)
+aide --init
+mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+systemctl enable aide && systemctl start aide
+```
+
+### 8.4 leapp preupgrade 결과에서 보안 솔루션 관련 항목 처리 (RHEL 계열)
+
+```bash
+# leapp 사전 검사 실행
+leapp preupgrade
+
+# 리포트에서 high risk 항목만 필터링
+grep -A 10 'Risk Factor: high' /var/log/leapp/leapp-report.txt
+
+# 보안 솔루션 관련 항목 예시:
+# Title: Third-party kernel module detected
+#   → falconlsm, cbsensor 등 서드파티 커널 모듈이 업그레이드 차단 요인으로 분류됨
+#   → 조치: 해당 모듈 언로드 또는 에이전트 제거 후 업그레이드
+
+# 특정 커널 모듈 업그레이드 차단 해제 (leapp inhibitor 확인 후)
+leapp answer --section <섹션명>.confirm=True   # leapp이 안내하는 항목 이름 사용
+
+# 커널 모듈 언로드 후 leapp inhibitor 재확인
+rmmod falconlsm
+leapp preupgrade   # 재실행해서 항목 해소 확인
+```
+
+### 8.5 업그레이드 순서 전략
+
+보안 솔루션 충돌을 최소화하는 권장 순서:
+
+```
+1. 보안팀 사전 협의
+   └─ 업그레이드 일정, 보안 에이전트 임시 비활성화/제거 승인
+
+2. 업그레이드 전 준비
+   ├─ AMI/스냅샷 백업
+   ├─ 보안 에이전트 버전 및 신 OS 지원 여부 확인
+   ├─ DKMS 모듈 상태 확인 (dkms status)
+   └─ FIM(AIDE/Tripwire) 비활성화
+
+3. 보안 에이전트 처리 방식 선택
+   ├─ [방법 A] 에이전트 임시 중지 → OS 업그레이드 → 에이전트 재시작
+   ├─ [방법 B] 에이전트 제거 → OS 업그레이드 → 신 OS용 에이전트 재설치  ← 권장
+   └─ [방법 C] 블루/그린으로 전환해 보안 에이전트를 신 OS 이미지에 사전 포함
+
+4. OS 업그레이드 실행
+
+5. 업그레이드 후 복구
+   ├─ 보안 에이전트 재설치/시작
+   ├─ 에이전트 정상 동작 확인
+   ├─ FIM DB 재초기화
+   └─ 보안팀에 복구 완료 보고
+```
+
+### 8.6 블루/그린에서 보안 에이전트 사전 포함 (AWS)
+
+신규 AMI를 굽는 단계에서 보안 에이전트를 포함시키면 업그레이드 후 에이전트 누락 문제를 방지한다.
+
+```hcl
+# Packer로 신 OS AMI 빌드 시 보안 에이전트 포함 예시
+resource "null_resource" "bake_ami" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      packer build \
+        -var 'base_ami=${var.ubuntu2204_ami}' \
+        -var 'falcon_sensor_url=${var.falcon_sensor_url}' \
+        packer-ubuntu2204.pkr.hcl
+    EOT
+  }
+}
+```
+
+```bash
+# packer 스크립트 내 보안 에이전트 설치 예시 (CrowdStrike)
+# packer-ubuntu2204.pkr.hcl 의 provisioner shell 섹션
+#!/bin/bash
+# Falcon 센서 설치 (신 OS 지원 버전)
+curl -Lo /tmp/falcon-sensor.deb "${FALCON_SENSOR_URL}"
+dpkg -i /tmp/falcon-sensor.deb
+/opt/CrowdStrike/falconctl -s --cid="${FALCON_CID}"
+systemctl enable falcon-sensor
+# 초기 등록 후 CID 연결 확인
+/opt/CrowdStrike/falconctl -g --cid
+```
+
+---
+
+## 9. 업그레이드 전 체크리스트
+
+```
+사전 준비
+□ AMI/스냅샷 백업 완료
+□ 중요 설정 파일 별도 백업 (/etc, 앱 설정)
+□ 현재 실행 중인 서비스 목록 저장
+□ 디스크 여유 공간 5GB 이상 확인
+□ 패키지 전체 업데이트 완료 (apt upgrade / yum update)
+□ 서드파티 리포지토리/PPA 목록 확인
+□ tmux/screen 세션 준비 (SSH 끊김 대비)
+□ 임시 포트(1022 등) 보안 그룹 허용
+□ 설치된 보안 솔루션 목록 및 버전 확인 (dkms status, systemctl)
+□ 보안팀과 업그레이드 일정 및 에이전트 처리 방법 사전 협의
+
+업그레이드 후 검증
+□ OS 버전 확인 (lsb_release -a / cat /etc/os-release)
+□ 커널 버전 확인 (uname -r)
+□ 주요 서비스 상태 확인 (nginx, sshd, app 등)
+□ failed 상태 서비스 없음 확인
+□ 보안 에이전트 정상 동작 확인
+□ DKMS 모듈 빌드 상태 확인 (dkms status)
+□ FIM DB 재초기화 완료
+□ 애플리케이션 기능 테스트
+□ 로그 에러 없음 확인 (journalctl -p err)
+□ 재부팅 1회 실시 및 자동 시작 확인
+```
+
+## 10. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |---|---|
@@ -283,3 +554,6 @@ grub2-set-default 1   # 1 = 두 번째 항목(이전 커널)
 | 설정 파일 충돌 시 무조건 새 버전 선택 | 직접 수정한 파일은 기존 유지 후 수동 머지 |
 | 업그레이드 후 재부팅 없이 검증 | 반드시 재부팅 후 최종 확인 |
 | AL2 → AL2023 인플레이스 시도 | 공식 미지원, 블루/그린으로 전환 |
+| 보안팀 협의 없이 에이전트 강제 제거 | 보안팀 사전 승인 후 절차대로 처리 |
+| 업그레이드 후 FIM DB 재초기화 누락 | AIDE/Tripwire DB 재초기화 필수 (false alarm 방지) |
+| 신 OS 미지원 에이전트 버전 그대로 사용 | 에이전트 벤더 공식 OS 지원 매트릭스 사전 확인 |

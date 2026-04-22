@@ -600,7 +600,198 @@ cat servers.txt | xargs -P 10 -I{} bash -c \
 
 ---
 
-## 10. 자주 하는 실수
+## 10. tr - 문자 변환·삭제
+
+`tr`은 표준 입력에서 문자 단위로 변환·삭제·압축하는 필터다.
+파이프 중간에 끼워 대소문자 정규화, 구분자 교체, 불필요한 문자 제거에 자주 쓰인다.
+
+### 10.1 기본 문법
+
+```bash
+# tr [옵션] SET1 [SET2]
+# SET1의 각 문자를 SET2의 대응 문자로 1:1 변환
+# SET에는 리터럴 문자 외에 범위(a-z), 클래스([:upper:]) 사용 가능
+
+tr 'abc' 'ABC'          # a→A, b→B, c→C
+echo "hello" | tr 'a-z' 'A-Z'  # 소문자 전체를 대문자로
+```
+
+### 10.2 대소문자 변환
+
+```bash
+# 소문자 → 대문자
+echo "Hello World" | tr 'a-z' 'A-Z'        # HELLO WORLD
+echo "Hello World" | tr '[:lower:]' '[:upper:]'  # 같은 결과, POSIX 클래스 사용
+
+# 대문자 → 소문자
+echo "REGION=AP-NORTHEAST-2" | tr '[:upper:]' '[:lower:]'  # region=ap-northeast-2
+
+# 실전: 환경 변수 이름을 소문자 키로 정규화
+printenv | tr '[:upper:]' '[:lower:]'
+```
+
+### 10.3 문자 삭제 (-d)
+
+```bash
+# -d: SET1에 포함된 문자를 모두 삭제
+echo "user-name_01" | tr -d '-_'            # username01
+echo "  spaces  " | tr -d ' '              # spaces (공백 전체 제거)
+echo "abc123def" | tr -d '[:alpha:]'       # 123 (영문자 삭제, 숫자만 남김)
+echo "abc123def" | tr -d '[:digit:]'       # abcdef (숫자 삭제)
+
+# 줄바꿈 제거 (멀티라인 → 한 줄)
+cat list.txt | tr -d '\n'
+
+# Windows CRLF → Unix LF 변환 (스크립트가 \r 때문에 오동작할 때)
+tr -d '\r' < windows-file.sh > unix-file.sh
+
+# 실전: API 응답에서 따옴표 제거
+INSTANCE_ID=$(aws ec2 describe-instances ... | jq '.InstanceId' | tr -d '"')
+```
+
+### 10.4 문자 압축 (-s, squeeze)
+
+```bash
+# -s: 연속으로 반복되는 문자를 하나로 압축
+echo "hello   world" | tr -s ' '           # hello world (연속 공백 → 공백 1개)
+echo "aabbcc" | tr -s 'a-z'               # abc
+
+# 실전: ps/df 출력은 컬럼 정렬을 위해 공백이 여러 개 → awk 파싱 전에 정리
+ps aux | tr -s ' ' | cut -d' ' -f2,11     # PID, 명령어 추출
+df -h | tr -s ' '                         # 공백 정규화
+```
+
+### 10.5 보완 집합 (-c, complement)
+
+```bash
+# -c: SET1의 보완 집합 (SET1에 없는 문자들)을 대상으로 처리
+# 알파벳·숫자·줄바꿈 이외의 문자를 모두 공백으로 치환
+echo "price: $1,234.56!" | tr -c '[:alnum:]\n' ' '   # price   1 234 56
+
+# 숫자 이외 모두 제거
+echo "Memory: 2048 MB" | tr -cd '[:digit:]'           # 2048
+
+# 실전: 로그에서 숫자만 추출해 합산
+grep 'bytes' access.log | tr -cd '0-9\n' | awk '{sum+=$1} END{print sum}'
+```
+
+### 10.6 실전 조합 패턴
+
+```bash
+# 구분자 교체: 콤마 CSV → 탭 구분
+cat data.csv | tr ',' '\t'
+
+# 콜론 경로를 줄바꿈으로 분리해서 탐색
+echo $PATH | tr ':' '\n'
+
+# 줄바꿈을 공백으로 모아서 한 줄 명령 인자로 사용
+# (xargs 없이 직접 조합할 때)
+IDS=$(cat id-list.txt | tr '\n' ' ')
+aws ec2 describe-instances --instance-ids $IDS
+
+# 대소문자 무시 비교 (변수 정규화 후 비교)
+ENV_LOWER=$(echo "$ENV" | tr '[:upper:]' '[:lower:]')
+if [[ "$ENV_LOWER" == "prod" ]]; then ...
+
+# 디스크 사용률 숫자만 추출 (% 기호 제거)
+USAGE=$(df / | awk 'NR==2{print $5}' | tr -d '%')
+if (( USAGE > 80 )); then echo "디스크 위험"; fi
+```
+
+---
+
+## 11. cut - 필드·문자 단위 추출
+
+`cut`은 각 줄에서 특정 컬럼(필드)이나 문자 위치를 잘라내는 도구다.
+구분자가 명확한 구조화된 텍스트(CSV, `/etc/passwd`, 로그 등)에서 빠르게 컬럼을 뽑을 때 `awk`보다 간결하다.
+
+### 11.1 필드 추출 (-d, -f)
+
+```bash
+# -d: 구분자 지정 (기본값: 탭)
+# -f: 추출할 필드 번호 (1부터 시작)
+
+# /etc/passwd에서 사용자 이름(1번)과 홈 디렉토리(6번)만 추출
+cut -d: -f1,6 /etc/passwd
+
+# CSV에서 첫 번째, 세 번째 컬럼
+cut -d',' -f1,3 data.csv
+
+# 범위 지정: 2번부터 4번 필드
+cut -d',' -f2-4 data.csv
+
+# 3번 이후 모든 필드
+cut -d',' -f3- data.csv
+
+# 3번까지 모든 필드
+cut -d',' -f-3 data.csv
+```
+
+### 11.2 문자 위치 추출 (-c)
+
+```bash
+# -c: 문자 위치(character position)로 추출 (고정 너비 포맷에 유용)
+
+# 1~10번째 문자
+cut -c1-10 file.txt
+
+# 타임스탬프 앞 19자리 추출 (예: "2024-01-15 08:30:22 ERROR ...")
+cut -c1-19 app.log
+
+# 특정 위치 이후 전체
+cut -c20- app.log
+
+# 실전: AWS CLI 출력에서 날짜만 추출
+aws ec2 describe-instances ... | grep LaunchTime | cut -c15-34
+```
+
+### 11.3 실전 패턴
+
+```bash
+# hostname에서 환경 접두사만 추출 (예: prod-web-01 → prod)
+hostname | cut -d'-' -f1
+
+# 파일 확장자 추출 (마지막 . 이후)
+echo "archive.tar.gz" | rev | cut -d'.' -f1 | rev   # gz
+
+# /etc/os-release에서 OS 이름만
+grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"'   # amzn, ubuntu 등
+
+# 프로세스 목록에서 PID만 추출
+ps aux | grep nginx | grep -v grep | tr -s ' ' | cut -d' ' -f2
+
+# SSH 공개키에서 키 타입만 추출
+cut -d' ' -f1 ~/.ssh/authorized_keys                  # ssh-rsa, ssh-ed25519 등
+
+# 로그 레벨만 추출 (고정 포맷 로그: "[2024-01-15 08:30:22] [ERROR] ...")
+grep '\[ERROR\]' app.log | cut -d']' -f2 | cut -d'[' -f2   # ERROR
+
+# AWS 인스턴스 ID 목록에서 태그 이름 기준 정렬
+aws ec2 describe-tags --filters "Name=key,Values=Name" \
+  | jq -r '.Tags[] | [.ResourceId, .Value] | @tsv' \
+  | sort -t$'\t' -k2 \
+  | cut -f1                                           # ResourceId만 출력
+
+# 구분자가 다를 때 tr로 정규화 후 cut
+# 예: "key=value" 형식에서 value만
+echo "DB_HOST=db.internal" | tr '=' '\t' | cut -f2   # db.internal
+```
+
+### 11.4 cut vs awk 선택 기준
+
+| 상황 | 권장 도구 |
+|---|---|
+| 구분자가 고정, 단순 컬럼 추출 | `cut` (더 간결) |
+| 조건 필터링 + 컬럼 추출 | `awk` |
+| 연속 공백이 구분자 (ps, df 출력) | `awk` (`cut`은 연속 공백을 빈 필드로 처리) |
+| 집계·계산 필요 | `awk` |
+| 고정 너비 텍스트에서 위치 기반 추출 | `cut -c` |
+
+> **주의**: `cut`은 연속된 공백을 하나로 합치지 않는다. `ps aux` 같은 출력을 `cut`으로 파싱하면 빈 필드가 생긴다. 이 경우 `tr -s ' '`로 공백을 압축한 후 `cut`을 쓰거나, 처음부터 `awk`를 사용한다.
+
+---
+
+## 12. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |---|---|

@@ -136,6 +136,7 @@ linux-basic/
 | `linux-syscall.md` | syscall 동작 원리, Ring/vDSO/KPTI/io_uring, 비용 분석 |
 | `linux-ebpf.md` | eBPF 동작 원리, bcc/bpftrace 도구, 관측 가능성 |
 | `linux-coredump.md` | coredump 생성·분석, gdb 활용, ulimit 설정 |
+| `linux-filesystem-standards.md` | 디렉토리 레이아웃 표준, 이관 폴더, EFS/NAS 마운트 표준 |
 
 ### security/
 | 파일 | 주제 |
@@ -144,6 +145,7 @@ linux-basic/
 | `linux-file-permissions.md` | chmod, chown, umask, 특수 권한 비트 |
 | `linux-audit.md` | auditd 시스템 감사, 규칙 설정, aureport/ausearch |
 | `linux-seccomp.md` | seccomp 시스템콜 필터링, Docker/K8s 보안 프로파일 |
+| `linux-account-standards.md` | UID/GID 범위 표준, 계정 네이밍, 수명주기, sudo 관리 |
 
 ---
 
