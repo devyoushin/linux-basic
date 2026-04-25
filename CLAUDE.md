@@ -96,6 +96,7 @@ linux-basic/
 | `linux-network-tuning.md` | TCP 스택 튜닝, 소켓 버퍼, 고성능 네트워크 설정 |
 | `linux-nftables.md` | nftables 개념, iptables 대체, 규칙 작성 |
 | `linux-tc.md` | tc(traffic control), 대역폭 제한, QoS, netem |
+| `linux-ipvs.md` | IPVS L4 로드밸런서, ipvsadm, Kubernetes kube-proxy IPVS 모드 |
 
 ### storage/
 | 파일 | 주제 |
