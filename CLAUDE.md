@@ -138,6 +138,9 @@ linux-basic/
 | `linux-ebpf.md` | eBPF 동작 원리, bcc/bpftrace 도구, 관측 가능성 |
 | `linux-coredump.md` | coredump 생성·분석, gdb 활용, ulimit 설정 |
 | `linux-filesystem-standards.md` | 디렉토리 레이아웃 표준, 이관 폴더, EFS/NAS 마운트 표준 |
+| `linux-systemctl.md` | systemd 서비스 관리, 유닛 파일 작성, 장애 디버깅, 부팅 분석 |
+| `linux-ulimit.md` | 프로세스 리소스 제한, nofile/nproc, systemd 연계, 컨테이너 |
+| `linux-systemd-timer.md` | systemd 타이머, cron 대체, OnCalendar, 실패 알림 |
 
 ### security/
 | 파일 | 주제 |
@@ -147,13 +150,23 @@ linux-basic/
 | `linux-audit.md` | auditd 시스템 감사, 규칙 설정, aureport/ausearch |
 | `linux-seccomp.md` | seccomp 시스템콜 필터링, Docker/K8s 보안 프로파일 |
 | `linux-account-standards.md` | UID/GID 범위 표준, 계정 네이밍, 수명주기, sudo 관리 |
+| `linux-selinux.md` | SELinux MAC, 레이블/컨텍스트, boolean, 커스텀 정책, 컨테이너 |
+
+### networking/ (추가)
+| 파일 | 주제 |
+|---|---|
+| `linux-tcpdump.md` | 패킷 캡처, BPF 필터, TLS/TCP 장애 분석, tshark |
+| `linux-conntrack.md` | 커넥션 트래킹, 테이블 풀 장애, Kubernetes 연계, NOTRACK |
 
 ---
 
 ## 백로그 (추가 예정)
 
-- `networking/linux-tcpdump.md` — 패킷 캡처 및 분석
-- `system/linux-systemctl.md` — systemd 서비스 관리 심화
 - `system/linux-logrotate.md` — 로그 파일 순환 관리
 - `security/linux-sudo.md` — sudo 설정 및 /etc/sudoers
 - `security/linux-ufw-firewalld.md` — 방화벽 프론트엔드 도구
+- `security/linux-pam.md` — PAM 인증 모듈, 비밀번호 정책, MFA 연계
+- `system/linux-swap.md` — Swap 설정, swappiness 튜닝, OOM과의 관계
+- `storage/linux-io-scheduler.md` — I/O 스케줄러(mq-deadline/kyber/bfq), 디스크 튜닝
+- `networking/linux-wireguard.md` — WireGuard VPN, 커널 모듈, Site-to-Site 설정
+- `system/linux-container-runtime.md` — containerd/CRI-O 아키텍처, 이미지 관리, 런타임 디버깅
