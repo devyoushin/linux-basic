@@ -112,6 +112,7 @@ linux-basic/
 | `linux-overlayfs.md` | OverlayFS 레이어 구조, Docker/컨테이너 연계 |
 | `linux-large-dir-ops.md` | 대용량 파일 트리에서 du/chown/find 느린 원리와 가속 기법 |
 | `linux-bulk-transfer.md` | 대량 데이터 전송 전략: rsync 심화, 멀티프로세스 병렬화, tar 파이프라인, 클라우드 고속 전송 |
+| `linux-io-scheduler.md` | I/O 스케줄러 mq-deadline/kyber/bfq/none, 디스크 유형별 튜닝 |
 
 ### system/
 | 파일 | 주제 |
@@ -141,6 +142,12 @@ linux-basic/
 | `linux-systemctl.md` | systemd 서비스 관리, 유닛 파일 작성, 장애 디버깅, 부팅 분석 |
 | `linux-ulimit.md` | 프로세스 리소스 제한, nofile/nproc, systemd 연계, 컨테이너 |
 | `linux-systemd-timer.md` | systemd 타이머, cron 대체, OnCalendar, 실패 알림 |
+| `linux-io-uring.md` | io_uring 비동기 I/O, SQ/CQ 링 버퍼, epoll 대체, liburing |
+| `linux-zero-copy.md` | sendfile/splice/mmap zero-copy, Nginx/Kafka/Java 연계 |
+| `linux-numa.md` | NUMA 아키텍처, numactl, DB/JVM 최적화, 토폴로지 확인 |
+| `linux-cpu-freq-power.md` | CPU governor, C-state/P-state, Turbo Boost, 레이턴시 최적화 |
+| `linux-irq-affinity.md` | IRQ affinity, isolcpus, nohz_full, CPU 격리, cyclictest |
+| `linux-memory-pressure.md` | PSI, dirty page 정책, THP, page reclaim 튜닝, OOM score |
 
 ### security/
 | 파일 | 주제 |
@@ -157,6 +164,10 @@ linux-basic/
 |---|---|
 | `linux-tcpdump.md` | 패킷 캡처, BPF 필터, TLS/TCP 장애 분석, tshark |
 | `linux-conntrack.md` | 커넥션 트래킹, 테이블 풀 장애, Kubernetes 연계, NOTRACK |
+| `linux-xdp.md` | XDP eXpress Data Path, iptables 대체, DDoS 방어, eBPF 패킷 처리 |
+| `linux-dpdk.md` | DPDK 커널 bypass, PMD, hugepage, 100Gbps 패킷 처리 |
+| `linux-rss-rps-rfs.md` | 멀티큐 NIC 튜닝, 수신 부하 분산, IRQ affinity |
+| `linux-ebpf-cilium.md` | Cilium CNI, kube-proxy 대체, eBPF 맵, Hubble 관측 |
 
 ---
 
@@ -167,6 +178,6 @@ linux-basic/
 - `security/linux-ufw-firewalld.md` — 방화벽 프론트엔드 도구
 - `security/linux-pam.md` — PAM 인증 모듈, 비밀번호 정책, MFA 연계
 - `system/linux-swap.md` — Swap 설정, swappiness 튜닝, OOM과의 관계
-- `storage/linux-io-scheduler.md` — I/O 스케줄러(mq-deadline/kyber/bfq), 디스크 튜닝
+- ~~`storage/linux-io-scheduler.md`~~ — 완료
 - `networking/linux-wireguard.md` — WireGuard VPN, 커널 모듈, Site-to-Site 설정
 - `system/linux-container-runtime.md` — containerd/CRI-O 아키텍처, 이미지 관리, 런타임 디버깅
