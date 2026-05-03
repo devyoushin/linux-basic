@@ -148,6 +148,9 @@ linux-basic/
 | `linux-cpu-freq-power.md` | CPU governor, C-state/P-state, Turbo Boost, 레이턴시 최적화 |
 | `linux-irq-affinity.md` | IRQ affinity, isolcpus, nohz_full, CPU 격리, cyclictest |
 | `linux-memory-pressure.md` | PSI, dirty page 정책, THP, page reclaim 튜닝, OOM score |
+| `linux-kernel-modules.md` | 커널 모듈 로드/언로드, 파라미터, DKMS, Secure Boot 서명 |
+| `linux-scheduler.md` | CFS 내부 동작, RT 스케줄링, taskset, SCHED_DEADLINE |
+| `linux-ftrace.md` | ftrace 커널 함수 트레이싱, kprobe, trace-cmd, 레이턴시 분석 |
 
 ### security/
 | 파일 | 주제 |
