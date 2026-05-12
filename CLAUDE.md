@@ -171,6 +171,7 @@ linux-basic/
 | `linux-dpdk.md` | DPDK 커널 bypass, PMD, hugepage, 100Gbps 패킷 처리 |
 | `linux-rss-rps-rfs.md` | 멀티큐 NIC 튜닝, 수신 부하 분산, IRQ affinity |
 | `linux-ebpf-cilium.md` | Cilium CNI, kube-proxy 대체, eBPF 맵, Hubble 관측 |
+| `linux-nginx-tuning.md` | Nginx 성능 튜닝, OS 커널 파라미터, worker/이벤트/버퍼/upstream keepalive |
 
 ---
 
