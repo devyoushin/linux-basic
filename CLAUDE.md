@@ -172,6 +172,7 @@ linux-basic/
 | `linux-rss-rps-rfs.md` | 멀티큐 NIC 튜닝, 수신 부하 분산, IRQ affinity |
 | `linux-ebpf-cilium.md` | Cilium CNI, kube-proxy 대체, eBPF 맵, Hubble 관측 |
 | `linux-nginx-tuning.md` | Nginx 성능 튜닝, OS 커널 파라미터, worker/이벤트/버퍼/upstream keepalive |
+| `linux-network-troubleshooting.md` | 네트워크 장애 진단, 계층별 명령어, 시나리오별 트러블슈팅 흐름 |
 
 ---
 
