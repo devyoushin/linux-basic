@@ -113,6 +113,7 @@ linux-basic/
 | `linux-large-dir-ops.md` | 대용량 파일 트리에서 du/chown/find 느린 원리와 가속 기법 |
 | `linux-bulk-transfer.md` | 대량 데이터 전송 전략: rsync 심화, 멀티프로세스 병렬화, tar 파이프라인, 클라우드 고속 전송 |
 | `linux-io-scheduler.md` | I/O 스케줄러 mq-deadline/kyber/bfq/none, 디스크 유형별 튜닝 |
+| `linux-storage-troubleshooting.md` | 스토리지·디스크 장애 진단, 계층별 명령어, 시나리오별 트러블슈팅 흐름 |
 
 ### system/
 | 파일 | 주제 |
