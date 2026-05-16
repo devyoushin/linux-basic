@@ -152,6 +152,7 @@ linux-basic/
 | `linux-kernel-modules.md` | 커널 모듈 로드/언로드, 파라미터, DKMS, Secure Boot 서명 |
 | `linux-scheduler.md` | CFS 내부 동작, RT 스케줄링, taskset, SCHED_DEADLINE |
 | `linux-ftrace.md` | ftrace 커널 함수 트레이싱, kprobe, trace-cmd, 레이턴시 분석 |
+| `linux-system-troubleshooting.md` | 시스템 장애 진단, CPU/메모리/프로세스/서비스 계층별 명령어, 시나리오별 트러블슈팅 흐름 |
 
 ### security/
 | 파일 | 주제 |
