@@ -175,6 +175,8 @@ linux-basic/
 | `linux-ebpf-cilium.md` | Cilium CNI, kube-proxy 대체, eBPF 맵, Hubble 관측 |
 | `linux-nginx-tuning.md` | Nginx 성능 튜닝, OS 커널 파라미터, worker/이벤트/버퍼/upstream keepalive |
 | `linux-network-troubleshooting.md` | 네트워크 장애 진단, 계층별 명령어, 시나리오별 트러블슈팅 흐름 |
+| `linux-synflood.md` | SYN Flood 공격 원리, SYN Cookie, iptables/nftables 방어, 커널 파라미터 튜닝 |
+| `linux-iptables-conntrack.md` | iptables 상태 기반 필터링, --ctstate ESTABLISHED/RELATED/INVALID 상세 동작, Netfilter 연동 |
 
 ---
 
@@ -188,3 +190,5 @@ linux-basic/
 - ~~`storage/linux-io-scheduler.md`~~ — 완료
 - `networking/linux-wireguard.md` — WireGuard VPN, 커널 모듈, Site-to-Site 설정
 - `system/linux-container-runtime.md` — containerd/CRI-O 아키텍처, 이미지 관리, 런타임 디버깅
+- ~~`networking/linux-synflood.md`~~ — 완료
+- ~~`networking/linux-iptables-conntrack.md`~~ — 완료
