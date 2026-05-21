@@ -55,6 +55,7 @@ linux-basic/
 | [linux-environment-variables](system/linux-environment-variables.md) | 환경변수 관리, .bashrc/.profile 차이, systemd 서비스 env |
 | [linux-cpu-cores](system/linux-cpu-cores.md) | 물리/논리 코어, 명령어별 스레드 사용, 병렬화, load average |
 | [linux-memory](system/linux-memory.md) | 가상메모리, 페이지 캐시, RSS/VSZ, OOM killer, Swap |
+| [linux-swap](system/linux-swap.md) | Swap 동작 원리, thrash 진단, swappiness, K8s 운영 주의점 |
 | [linux-process-thread](system/linux-process-thread.md) | 프로세스 vs 스레드, fork/exec, namespace/cgroup, 컨테이너 기초 |
 | [linux-cgroup](system/linux-cgroup.md) | cgroup v1/v2, cpu/memory/io 제한, systemd, Docker/K8s 연계 |
 | [linux-namespace](system/linux-namespace.md) | Linux namespace 종류, pid/net/mnt/user ns, 컨테이너 격리 |
