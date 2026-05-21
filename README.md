@@ -34,6 +34,7 @@ linux-basic/
 | [linux-fstab](storage/linux-fstab.md) | /etc/fstab, 파일시스템 자동 마운트 |
 | [linux-lsblk](storage/linux-lsblk.md) | 블록 장치 조회, UUID 확인 |
 | [linux-volume-mount](storage/linux-volume-mount.md) | EBS 볼륨 연결 → 포맷 → 마운트 → 확장 전체 흐름 |
+| [linux-filesystem-ext4-xfs-repair](storage/linux-filesystem-ext4-xfs-repair.md) | ext4/XFS 선택 기준, fsck, xfs_repair 복구 절차 |
 | [linux-df-du](storage/linux-df-du.md) | 파일시스템/디렉토리 사용량, 디스크 풀 장애 대응 |
 | [linux-package-managers](storage/linux-package-managers.md) | rpm/yum/dnf/apt 비교, 리포지토리 관리 |
 | [linux-nfs-efs-mount](storage/linux-nfs-efs-mount.md) | NFS/EFS 마운트, UID/GID 권한 모델, 액세스 포인트 |
