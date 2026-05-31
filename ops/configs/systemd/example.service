@@ -1,0 +1,17 @@
+[Unit]
+Description=Example long-running service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+WorkingDirectory=/tmp
+ExecStart=/usr/bin/python3 -m http.server 8080
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

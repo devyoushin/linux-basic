@@ -1,0 +1,9 @@
+[Unit]
+Description=Run hello.service every minute
+
+[Timer]
+OnCalendar=*:0/1
+Unit=hello.service
+
+[Install]
+WantedBy=timers.target

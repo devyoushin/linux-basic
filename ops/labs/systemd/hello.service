@@ -1,0 +1,6 @@
+[Unit]
+Description=Linux basic hello service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/printf 'hello from systemd\n'
