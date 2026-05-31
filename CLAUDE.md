@@ -25,23 +25,23 @@ linux-basic/
 │       ├── review-doc.md      # /review-doc — 문서 품질 검토
 │       ├── add-troubleshooting.md  # /add-troubleshooting — 트러블슈팅 추가
 │       └── search-kb.md       # /search-kb — 지식베이스 검색
-├── agents/                    # 전문 에이전트 정의
+├── docs/agents/                    # 전문 에이전트 정의
 │   ├── doc-writer.md          # Linux 문서 작성 전문가
 │   ├── performance-advisor.md # 성능 분석 전문가
 │   ├── security-auditor.md    # 보안 감사 전문가
 │   └── kernel-expert.md       # 커널 내부 전문가
-├── templates/                 # 문서 템플릿
+├── docs/templates/                 # 문서 템플릿
 │   ├── service-doc.md         # 서비스/도구 문서 템플릿
 │   ├── runbook.md             # 운영 런북 템플릿
 │   └── incident-report.md     # 장애 보고서 템플릿
-├── rules/                     # Claude 작성 규칙
+├── docs/rules/                     # Claude 작성 규칙
 │   ├── doc-writing.md         # 문서 작성 원칙
 │   ├── linux-conventions.md   # Linux 표준 관행
 │   ├── security-checklist.md  # 보안 체크리스트
 │   └── monitoring.md          # 모니터링 지침
-├── networking/                # 네트워크 설정 및 트러블슈팅
-├── storage/                   # 스토리지, 파일시스템, 마운트
-├── system/                    # 부팅, 프로세스, 로그, 스케줄링
+├── docs/networking/                # 네트워크 설정 및 트러블슈팅
+├── docs/storage/                   # 스토리지, 파일시스템, 마운트
+├── docs/system/                    # 부팅, 프로세스, 로그, 스케줄링
 └── security/                  # 접근 제어, 권한, SSH
 ```
 
@@ -51,9 +51,9 @@ linux-basic/
 
 | 명령어 | 설명 | 사용 예시 |
 |--------|------|---------|
-| `/new-doc` | 새 Linux 문서 생성 | `/new-doc system/linux-ulimit` |
+| `/new-doc` | 새 Linux 문서 생성 | `/new-doc docs/system/linux-ulimit` |
 | `/new-runbook` | 새 런북 생성 | `/new-runbook 디스크 풀 대응` |
-| `/review-doc` | 문서 품질 검토 | `/review-doc system/linux-memory.md` |
+| `/review-doc` | 문서 품질 검토 | `/review-doc docs/system/linux-memory.md` |
 | `/add-troubleshooting` | 트러블슈팅 케이스 추가 | `/add-troubleshooting OOM killer` |
 | `/search-kb` | 지식베이스 검색 | `/search-kb TCP 튜닝` |
 
@@ -84,7 +84,7 @@ linux-basic/
 
 ## 현재 문서 목록
 
-### networking/
+### docs/networking/
 | 파일 | 주제 |
 |---|---|
 | `linux-iptables.md` | 패킷 필터링, NAT, 방화벽 규칙 |
@@ -98,7 +98,7 @@ linux-basic/
 | `linux-tc.md` | tc(traffic control), 대역폭 제한, QoS, netem |
 | `linux-ipvs.md` | IPVS L4 로드밸런서, ipvsadm, Kubernetes kube-proxy IPVS 모드 |
 
-### storage/
+### docs/storage/
 | 파일 | 주제 |
 |---|---|
 | `linux-fstab.md` | /etc/fstab, 파일시스템 자동 마운트 |
@@ -115,7 +115,7 @@ linux-basic/
 | `linux-io-scheduler.md` | I/O 스케줄러 mq-deadline/kyber/bfq/none, 디스크 유형별 튜닝 |
 | `linux-storage-troubleshooting.md` | 스토리지·디스크 장애 진단, 계층별 명령어, 시나리오별 트러블슈팅 흐름 |
 
-### system/
+### docs/system/
 | 파일 | 주제 |
 |---|---|
 | `linux-rc-local-systemd.md` | 부팅 시 자동 실행: rc.local vs systemd |
@@ -164,7 +164,7 @@ linux-basic/
 | `linux-account-standards.md` | UID/GID 범위 표준, 계정 네이밍, 수명주기, sudo 관리 |
 | `linux-selinux.md` | SELinux MAC, 레이블/컨텍스트, boolean, 커스텀 정책, 컨테이너 |
 
-### networking/ (추가)
+### docs/networking/ (추가)
 | 파일 | 주제 |
 |---|---|
 | `linux-tcpdump.md` | 패킷 캡처, BPF 필터, TLS/TCP 장애 분석, tshark |
@@ -182,13 +182,13 @@ linux-basic/
 
 ## 백로그 (추가 예정)
 
-- `system/linux-logrotate.md` — 로그 파일 순환 관리
+- `docs/system/linux-logrotate.md` — 로그 파일 순환 관리
 - `security/linux-sudo.md` — sudo 설정 및 /etc/sudoers
 - `security/linux-ufw-firewalld.md` — 방화벽 프론트엔드 도구
 - `security/linux-pam.md` — PAM 인증 모듈, 비밀번호 정책, MFA 연계
-- `system/linux-swap.md` — Swap 설정, swappiness 튜닝, OOM과의 관계
-- ~~`storage/linux-io-scheduler.md`~~ — 완료
-- `networking/linux-wireguard.md` — WireGuard VPN, 커널 모듈, Site-to-Site 설정
-- `system/linux-container-runtime.md` — containerd/CRI-O 아키텍처, 이미지 관리, 런타임 디버깅
-- ~~`networking/linux-synflood.md`~~ — 완료
-- ~~`networking/linux-iptables-conntrack.md`~~ — 완료
+- `docs/system/linux-swap.md` — Swap 설정, swappiness 튜닝, OOM과의 관계
+- ~~`docs/storage/linux-io-scheduler.md`~~ — 완료
+- `docs/networking/linux-wireguard.md` — WireGuard VPN, 커널 모듈, Site-to-Site 설정
+- `docs/system/linux-container-runtime.md` — containerd/CRI-O 아키텍처, 이미지 관리, 런타임 디버깅
+- ~~`docs/networking/linux-synflood.md`~~ — 완료
+- ~~`docs/networking/linux-iptables-conntrack.md`~~ — 완료

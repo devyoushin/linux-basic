@@ -20,6 +20,25 @@
 
 ## 3. 계층별 핵심 명령어
 
+### 3-0. L2 — 링크/ARP 확인
+
+```bash
+# 인터페이스 UP/DOWN 상태 확인
+ip link show
+# → "state UP" 이면 정상, "state DOWN" 이면 물리 또는 설정 문제
+
+# 같은 서브넷 내 통신 불가 시 ARP 테이블 확인
+ip neigh show
+# REACHABLE: 정상 / STALE: 오래됨 / FAILED: ARP 해석 실패(L2 문제)
+
+# VLAN 설정 확인 (태깅 문제 의심 시)
+ip -d link show eth0
+cat /proc/net/vlan/config 2>/dev/null
+
+# NIC 물리 상태 확인 (속도, 듀플렉스, 링크 감지)
+ethtool eth0 | grep -E "Speed|Duplex|Link detected"
+```
+
 ### 3-1. L3 — IP 연결성 확인
 
 ```bash
@@ -178,12 +197,18 @@ tcpdump -i eth0 port 80 -nn
 #                                   안 보이면 네트워크/방화벽 문제
 ```
 
-### 시나리오 2: DNS 해석 실패 ("Name or service not known")
+### 시나리오 2: DNS 해석 실패 / 간헐적 타임아웃
+
+**증상 유형:**
+- `Name or service not known` — 완전 해석 실패
+- 특정 도메인만 실패, 나머지는 정상
+- 간헐적 DNS 타임아웃 (5초 지연 후 재시도)
 
 ```bash
 # Step 1: 시스템 DNS 설정 확인
 cat /etc/resolv.conf
 # nameserver가 정상인지 확인 (127.0.0.53이면 systemd-resolved 사용 중)
+# options에 timeout/attempts 설정 확인 (기본: timeout 5, attempts 2)
 
 # Step 2: nsswitch 설정 확인
 grep hosts /etc/nsswitch.conf
@@ -197,9 +222,37 @@ dig @$(awk '/nameserver/{print $2; exit}' /etc/resolv.conf) google.com
 dig @8.8.8.8 example.com
 # 외부 DNS는 되고 내부 DNS만 안 되면 → 내부 DNS 서버 문제
 
-# Step 5: /etc/hosts 임시 등록 (긴급 조치)
+# Step 5: dig +trace로 어느 계층에서 실패하는지 추적
+dig +trace example.com
+# 루트 → TLD → 권한 DNS 순서로 전체 해석 과정을 보여줌
+# 특정 NS에서 응답이 없으면 해당 네임서버 장애
+
+# Step 6: DNS 패킷을 직접 캡처하여 쿼리/응답 확인
+tcpdump -i any port 53 -nn -c 20
+# 쿼리만 나가고 응답이 안 오면 → DNS 서버 도달 불가 또는 방화벽 차단
+# 응답에 SERVFAIL 포함 → 업스트림 DNS 서버 문제
+
+# Step 7: 간헐적 타임아웃 — conntrack UDP timeout 확인
+# DNS는 UDP 프로토콜 사용, conntrack이 UDP 엔트리를 너무 빨리 만료시키면
+# 응답이 돌아와도 드롭됨
+sysctl net.netfilter.nf_conntrack_udp_timeout
+sysctl net.netfilter.nf_conntrack_udp_timeout_stream
+# 기본값: 30초/120초 — 너무 낮으면 DNS 응답 드롭 가능
+
+# Step 8: /etc/hosts 임시 등록 (긴급 조치)
 echo "1.2.3.4 example.com" >> /etc/hosts
 ```
+
+> **주의**: `/etc/hosts`에 임시 등록하면 DNS 변경이 반영되지 않으므로 장애 해소 후 반드시 제거한다.
+
+**간헐적 DNS 실패 체크포인트:**
+
+| 증상 | 원인 | 확인 방법 |
+|------|------|----------|
+| 5초 지연 후 성공 | 첫 번째 nameserver 불가, 두 번째로 fallback | `dig @<첫번째_NS>` 직접 시도 |
+| 특정 도메인만 실패 | 해당 도메인의 권한 NS 장애 | `dig +trace <도메인>` |
+| 대량 요청 시 실패 | conntrack table full로 UDP 응답 드롭 | `dmesg \| grep conntrack` |
+| IPv6 쿼리 지연 | AAAA 쿼리 타임아웃 후 A로 fallback | `dig AAAA <도메인>`, resolv.conf에 `options single-request-reopen` 추가 |
 
 ### 시나리오 3: 연결은 되는데 패킷 손실/느림
 
@@ -294,6 +347,69 @@ tcpdump -i any port <PORT> -nn -c 5
 # - 안 들어온다: 네트워크/방화벽 차단 (timed out 원인)
 ```
 
+### 시나리오 7: conntrack table full — 간헐적 패킷 드롭
+
+**증상:**
+- 기존 연결(ESTABLISHED)은 정상이지만 **신규 연결만 실패**
+- `curl`이 간헐적으로 타임아웃, 서비스 헬스체크 실패
+- dmesg에 `nf_conntrack: table full, dropping packet` 메시지
+
+```bash
+# Step 1: dmesg에서 conntrack 에러 확인
+dmesg | grep conntrack
+# "nf_conntrack: table full, dropping packet" → 확정 진단
+
+# Step 2: 현재 conntrack 사용량 vs 최대값 확인
+sysctl net.netfilter.nf_conntrack_max         # 최대 엔트리 수 (기본: 65536)
+sysctl net.netfilter.nf_conntrack_count        # 현재 사용 중인 엔트리 수
+# count가 max에 근접하면 위험
+
+# Step 3: conntrack 통계 — 드롭 수 확인
+cat /proc/net/stat/nf_conntrack
+# 첫 줄이 헤더, 각 CPU별 통계 — "drop" 컬럼 값이 0이 아니면 패킷 드롭 발생
+
+# Step 4: 상태별 분포 확인 — 어떤 상태가 테이블을 차지하는지
+conntrack -L -o extended | awk '{print $4}' | sort | uniq -c | sort -rn
+# TIME_WAIT가 대부분이면 → timeout 단축으로 해결 가능
+# ESTABLISHED가 대부분이면 → max 값 증가 필요
+
+# Step 5: 프로토콜별 분포 확인
+conntrack -L | awk '{print $1}' | sort | uniq -c | sort -rn
+# UDP 비율이 높으면 DNS/로그 수집 트래픽 확인
+
+# ── 해결 ──
+
+# 방법 1: conntrack 테이블 크기 증가 (즉시 적용)
+sysctl -w net.netfilter.nf_conntrack_max=262144
+# hashsize도 함께 조정 (max / 4 또는 max / 8)
+echo 65536 > /sys/module/nf_conntrack/parameters/hashsize
+
+# 방법 2: 타임아웃 단축 (불필요한 엔트리 빨리 정리)
+sysctl -w net.netfilter.nf_conntrack_tcp_timeout_time_wait=30      # 기본 120초
+sysctl -w net.netfilter.nf_conntrack_tcp_timeout_established=86400 # 기본 432000초(5일)
+sysctl -w net.netfilter.nf_conntrack_udp_timeout=30                # 기본 30초
+sysctl -w net.netfilter.nf_conntrack_udp_timeout_stream=60         # 기본 120초
+```
+
+> **주의**: `nf_conntrack_tcp_timeout_established`를 너무 짧게 설정하면 유휴 상태의 정상 연결이 끊어질 수 있다. DB 커넥션 풀 등 장시간 유지 연결이 있다면 최소 4시간(14400) 이상으로 설정한다.
+
+```bash
+# 방법 3: 특정 조건의 conntrack 엔트리 수동 삭제
+conntrack -D -p tcp --state TIME_WAIT     # TIME_WAIT 상태 일괄 삭제
+conntrack -D --src 10.0.1.100             # 특정 소스 IP 엔트리 삭제
+conntrack -D -p udp                       # UDP 엔트리 전체 삭제
+
+# 방법 4: 영구 적용 (/etc/sysctl.d/에 저장)
+cat > /etc/sysctl.d/99-conntrack.conf << 'SYSCTL'
+net.netfilter.nf_conntrack_max = 262144
+net.netfilter.nf_conntrack_tcp_timeout_time_wait = 30
+net.netfilter.nf_conntrack_tcp_timeout_established = 86400
+SYSCTL
+sysctl --system
+```
+
+> 상세한 conntrack 테이블 구조와 NOTRACK 설정은 [`linux-conntrack.md`](linux-conntrack.md) 참고.
+
 ---
 
 ## 5. 성능 진단 명령어
@@ -383,7 +499,75 @@ aws cloudwatch get-metric-statistics \
 
 ---
 
-## 8. 자주 하는 실수
+## 8. 모니터링 및 알람 기준
+
+사후 대응이 아닌 사전 감지를 위해 핵심 네트워크 메트릭에 알람을 설정한다.
+
+### 8-1. Prometheus + node_exporter 기반 주요 메트릭
+
+| 메트릭 | PromQL 예시 | 알람 임계값 | 의미 |
+|--------|-------------|------------|------|
+| conntrack 사용률 | `node_nf_conntrack_entries / node_nf_conntrack_entries_limit * 100` | > 80% (warn), > 95% (crit) | conntrack table full 직전 감지 |
+| 수신 패킷 드롭 | `rate(node_network_receive_drop_total[5m])` | > 0 (sustained) | NIC/커널 수신 버퍼 부족 |
+| 송신 에러 | `rate(node_network_transmit_errs_total[5m])` | > 0 (sustained) | NIC/드라이버 문제 |
+| TCP 재전송 | `rate(node_netstat_Tcp_RetransSegs[5m])` | > 100/s | 네트워크 품질 저하 또는 혼잡 |
+| TCP 연결 실패 | `rate(node_netstat_Tcp_AttemptFails[5m])` | > 50/s | 원격 포트 닫힘 또는 방화벽 DROP |
+| TIME_WAIT 수 | `node_sockstat_TCP_tw` | > 20000 | 포트 고갈 임박 |
+| UDP 수신 에러 | `rate(node_netstat_Udp_RcvbufErrors[5m])` | > 0 | UDP 소켓 버퍼 부족 (DNS 영향) |
+| softnet 드롭 | `rate(node_softnet_dropped_total[5m])` | > 0 | CPU의 패킷 처리 큐 오버플로우 |
+
+### 8-2. Alertmanager 룰 예시
+
+```yaml
+# conntrack table 사용률 경고
+groups:
+  - name: network
+    rules:
+      - alert: ConntrackTableNearFull
+        expr: node_nf_conntrack_entries / node_nf_conntrack_entries_limit > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "conntrack 사용률 {{ $value | humanizePercentage }} ({{ $labels.instance }})"
+          description: "80% 초과 시 신규 연결 드롭 위험. nf_conntrack_max 증가 또는 timeout 단축 필요."
+
+      - alert: HighTcpRetransmits
+        expr: rate(node_netstat_Tcp_RetransSegs[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TCP 재전송 {{ $value }}/s ({{ $labels.instance }})"
+
+      - alert: PacketDropDetected
+        expr: rate(node_network_receive_drop_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.device}} 수신 드롭 감지 ({{ $labels.instance }})"
+```
+
+### 8-3. 빠른 확인용 쉘 명령어
+
+```bash
+# conntrack 사용률 확인 (Prometheus 없을 때)
+echo "$(cat /proc/sys/net/netfilter/nf_conntrack_count) / $(cat /proc/sys/net/netfilter/nf_conntrack_max)" | bc -l
+
+# TCP 재전송 비율 (10초 간격 비교)
+T1=$(cat /proc/net/snmp | awk '/^Tcp:/{getline; print $13}')
+sleep 10
+T2=$(cat /proc/net/snmp | awk '/^Tcp:/{getline; print $13}')
+echo "재전송/10초: $(( T2 - T1 ))"
+
+# softnet 드롭 확인 (3번째 컬럼이 dropped)
+cat /proc/net/softnet_stat | awk '{total += strtonum("0x"$2)} END {print "softnet dropped:", total}'
+```
+
+---
+
+## 9. 자주 하는 실수
 
 | 실수 | 올바른 방법 |
 |------|------------|
@@ -395,22 +579,26 @@ aws cloudwatch get-metric-statistics \
 | 패킷 캡처 없이 앱 로그만 보고 판단 | 앱 로그에 없는 문제는 `tcpdump`로 실제 패킷을 봐야 원인 파악 가능 |
 | 원격지 포트 확인 시 `telnet` 사용 | `nc -zv` 또는 `curl -v`가 더 정확하고 현대적 — telnet은 없는 환경 많음 |
 | MTU 문제를 성능 문제로 오해 | 대용량 파일 전송만 느리고 소량 통신은 정상이면 MTU mismatch 의심 (`ping -M do -s 1472`) |
+| 간헐적 드롭을 애플리케이션 문제로만 판단 | `dmesg \| grep conntrack`으로 conntrack table full 여부부터 확인 — 신규 연결만 실패하는 패턴이면 conntrack 의심 |
+| DNS 타임아웃을 DNS 서버 탓으로만 돌림 | conntrack UDP timeout, resolv.conf의 `options single-request-reopen`, IPv6 AAAA fallback도 원인이 될 수 있음 |
 
 ---
 
-## 9. 트러블슈팅 체크리스트
+## 10. 트러블슈팅 체크리스트
 
 장애 발생 시 순서대로 체크한다:
 
 ```
-[ ] 1. 인터페이스 상태: ip link show — UP/DOWN 확인
-[ ] 2. IP 주소 할당: ip addr show — 정상 IP 할당 확인
-[ ] 3. 기본 게이트웨이: ip route show default — 게이트웨이 설정 확인
-[ ] 4. 게이트웨이 도달: ping <GW_IP> — L2/L3 연결 확인
-[ ] 5. 외부 IP 도달: ping 8.8.8.8 — 인터넷 연결 확인
-[ ] 6. DNS 해석: dig @8.8.8.8 google.com — 외부 DNS 동작 확인
-[ ] 7. 목적지 도달: traceroute/mtr — 경로 상 어디서 막히는지
-[ ] 8. 포트 오픈: ss -tlnp / nc -zv — 서비스 포트 리스닝 확인
-[ ] 9. 방화벽: iptables -L -n -v — DROP 규칙 확인
-[ ] 10. 실제 패킷: tcpdump — 패킷이 실제로 오가는지 확인
+[ ] 1.  L2 인터페이스 상태: ip link show — UP/DOWN, 속도/듀플렉스 확인
+[ ] 2.  L2 ARP 테이블: ip neigh show — 같은 서브넷 내 MAC 해석 정상 확인
+[ ] 3.  L3 IP 주소 할당: ip addr show — 정상 IP 할당 확인
+[ ] 4.  L3 기본 게이트웨이: ip route show default — 게이트웨이 설정 확인
+[ ] 5.  L3 게이트웨이 도달: ping <GW_IP> — L3 연결 확인
+[ ] 6.  L3 외부 IP 도달: ping 8.8.8.8 — 인터넷 연결 확인
+[ ] 7.  L7 DNS 해석: dig @8.8.8.8 google.com — 외부 DNS 동작 확인
+[ ] 8.  L3 목적지 도달: traceroute/mtr — 경로 상 어디서 막히는지
+[ ] 9.  L4 포트 오픈: ss -tlnp / nc -zv — 서비스 포트 리스닝 확인
+[ ] 10. L4 방화벽: iptables -L -n -v — DROP 규칙 확인
+[ ] 11. L4 conntrack: conntrack -C vs nf_conntrack_max — 테이블 포화 확인
+[ ] 12. 패킷 캡처: tcpdump — 패킷이 실제로 오가는지 확인
 ```

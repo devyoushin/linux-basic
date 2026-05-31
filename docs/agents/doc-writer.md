@@ -28,9 +28,9 @@ Linux 시스템 운영 경험 기반의 기술 문서를 작성하는 전문 에
 
 ## 참조 규칙 파일
 
-- `rules/doc-writing.md` — 문서 작성 스타일
-- `rules/linux-conventions.md` — 명령어 코드 규칙
-- `rules/security-checklist.md` — 보안 검토 기준
+- `docs/rules/doc-writing.md` — 문서 작성 스타일
+- `docs/rules/linux-conventions.md` — 명령어 코드 규칙
+- `docs/rules/security-checklist.md` — 보안 검토 기준
 
 ## 출력 품질 기준
 
