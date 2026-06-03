@@ -6,7 +6,7 @@ Linux 시스템, 네트워킹, 스토리지, 보안, 성능 진단을 운영 관
 
 - 문서 지도: `docs/README.md`
 - 운영/실습 자산: `ops/README.md`
-- AI 작업 지침: `CLAUDE.md`
+- AI 작업 지침: `CLAUDE.md`, `AGENTS.md -> CLAUDE.md`
 
 ## 구조
 
@@ -15,7 +15,8 @@ Linux 시스템, 네트워킹, 스토리지, 보안, 성능 진단을 운영 관
 | `docs/` | Linux 시스템, 네트워킹, 스토리지, 보안 문서와 작성 규칙 |
 | `ops/` | 향후 실습 스크립트와 운영 자동화 자산 |
 | `.claude/` | Claude Code 커맨드와 설정 |
-| `CLAUDE.md` | Claude 작업 지침 |
+| `CLAUDE.md` | Claude/Codex 공통 작업 지침 원본 |
+| `AGENTS.md -> CLAUDE.md` | Codex/agent 작업 지침 링크 |
 
 ## 학습 흐름
 
